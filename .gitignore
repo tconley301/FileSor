@@ -1,0 +1,60 @@
+# ============================
+# Python
+# ============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# ============================
+# PyInstaller
+# ============================
+build/
+dist/
+*.spec
+
+# PyInstaller temp files
+*.manifest
+*.toc
+
+# ============================
+# Qt / PySide6
+# ============================
+*.qmlc
+*.qrc
+.qmake.stash
+
+# Qt Designer autosave
+*.ui.autosave
+
+# ============================
+# IDEs
+# ============================
+# PyCharm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# ============================
+# OS files
+# ============================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# ============================
+# Logs / temp
+# ============================
+*.log
+*.tmp
