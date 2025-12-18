@@ -15,7 +15,7 @@ from src.core.file_logic import FileLogic
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QListView, QLabel
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QCloseEvent
 
 # Path to the Qt Designer .ui file
 MAIN_WINDOW_UI = Helper.resource_path("fs_ui/FileSorterMain.ui")
@@ -53,6 +53,12 @@ class FileSorterApp(QMainWindow):
 
         self.file_logic = FileLogic(self)
         self.ui_handler = UIHandler(self, self.file_logic)
+
+    def closeEvent(self, event: QCloseEvent):
+        """Save folder rules before the window closes."""
+        self.ui_handler.save_folder_rules()
+        event.accept()  # explicitly allow close
+        super().closeEvent(event)
 # =====================================================================
 # Application Entrypoint
 # =====================================================================

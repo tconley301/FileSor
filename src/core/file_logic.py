@@ -89,10 +89,13 @@ class FileLogic:
                 errors += 1
 
         box = QMessageBox(self.window)
-        box.setWindowTitle("Sorting CompleteTEST")
+        box.setWindowTitle("Sorting Complete")
         box.setText(f"Sorted: {moved}\nNo extension matched: {skipped}\nErrors: {errors}")
-        box.setIcon(QMessageBox.Information)
+
+        box.setOption(QMessageBox.DontUseNativeDialog, True)  # <-- force Qt dialog
+        box.setIcon(QMessageBox.NoIcon)  # <-- avoid Windows "info" beep
         box.setStandardButtons(QMessageBox.Ok)
+
         box.exec()
 
     def sort_individual_files(self, files: List[Path]):

@@ -1,8 +1,9 @@
 import os
 
-from PySide6.QtCore import QUrl, Qt
+import json
+from PySide6.QtCore import QUrl, Qt, QStandardPaths
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
-from PySide6.QtWidgets import QMainWindow, QInputDialog, QFileDialog, QMenu, QListView, QTreeView, QAbstractItemView, \
+from PySide6.QtWidgets import QInputDialog, QFileDialog, QMenu, QListView, QTreeView, QAbstractItemView, \
     QMessageBox
 from pathlib import Path
 
@@ -23,6 +24,10 @@ class UIHandler:
 
         self.folder_model = QStandardItemModel()
         self.window.ui.folderListView.setModel(self.folder_model)
+
+        self.load_folder_rules()
+        self.refresh_folder_list()
+
         self.window.ui.folderListView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.window.ui.folderListView.customContextMenuRequested.connect(self.on_list_context_menu)
         self.window.ui.folderListView.doubleClicked.connect(self.on_folder_double_clicked)
@@ -60,6 +65,7 @@ class UIHandler:
             "exts": exts
         })
         self.refresh_folder_list()
+        self.save_folder_rules()
 
     def on_list_context_menu(self, pos):
         """Show right-click menu to edit or remove folder rules."""
@@ -106,6 +112,7 @@ class UIHandler:
         if ok:
             rule["exts"] = Helper.parse_exts(text)
             self.refresh_folder_list()
+            self.save_folder_rules()
 
     def remove_selected_folder(self, index):
         """Remove the folder rule tied to this list item."""
@@ -130,6 +137,7 @@ class UIHandler:
             self.folder_rules.remove(rule)
 
         self.refresh_folder_list()
+        self.save_folder_rules()
 
     def refresh_folder_list(self):
         """Rebuild the ListView based on current folder_rules."""
@@ -190,3 +198,44 @@ class UIHandler:
             self.logic.sort_individual_files(files)
         for d in dirs:
             self.logic.sort_files_from_directory(d)
+
+    # ============================
+    # Folder rules persistence
+    # ============================
+
+    def _rules_path(self) -> Path:
+        """Return path to the local rules file."""
+        base = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
+        base.mkdir(parents=True, exist_ok=True)
+        return base / "folder_rules.json"
+
+    def save_folder_rules(self) -> None:
+        """Save folder_rules to disk as JSON."""
+        path = self._rules_path()
+
+        data = []
+        for r in self.folder_rules:
+            data.append({
+                "name": r.get("name", ""),
+                "path": r.get("path", ""),
+                "exts": sorted(list(r.get("exts", set()))),  # set → list
+            })
+
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def load_folder_rules(self) -> None:
+        """Load folder_rules from disk if present."""
+        path = self._rules_path()
+        if not path.exists():
+            self.folder_rules = []
+            return
+
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        self.folder_rules = []
+
+        for r in raw:
+            self.folder_rules.append({
+                "name": r.get("name", ""),
+                "path": r.get("path", ""),
+                "exts": set(r.get("exts", [])),  # list → set
+            })
