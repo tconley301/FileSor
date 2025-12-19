@@ -15,10 +15,10 @@ from src.core.file_logic import FileLogic
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QListView, QLabel
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtGui import QGuiApplication, QCloseEvent
+from PySide6.QtGui import QGuiApplication, QCloseEvent, QIcon
 
 # Path to the Qt Designer .ui file
-MAIN_WINDOW_UI = Helper.resource_path("fs_ui/FileSorterMain.ui")
+MAIN_WINDOW_UI = Helper.resource_path("src/fs_ui/FileSorterMain.ui")
 
 class FileSorterApp(QMainWindow):
     """
@@ -36,7 +36,7 @@ class FileSorterApp(QMainWindow):
         f.close()
 
         self.setCentralWidget(self.ui)
-        self.setWindowTitle("File Sorter")
+        self.setWindowTitle("FileSor")
         self.resize(400, 300)
 
         # Menu bar
@@ -68,7 +68,9 @@ class FileSorterApp(QMainWindow):
 # =====================================================================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setApplicationName("FileSorterApp")
+    app.setApplicationName("FileSor")
+    icon_path = Helper.resource_path("Icons/fsfoldersicon.ico")
+    app.setWindowIcon(QIcon(str(icon_path)))
     window = FileSorterApp()
     window.show()
     sys.exit(app.exec())

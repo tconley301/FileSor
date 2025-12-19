@@ -19,7 +19,7 @@ class Helper:
             # parents[2] -> src/
             base = Path(__file__).resolve().parents[2]
 
-        return base / "src" / relative_path
+        return base / relative_path
 
     @staticmethod
     def parse_exts(text: str) -> set[str]:
