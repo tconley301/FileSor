@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/filesorter_ui.png" width="700">
+  <img src="assets/filesor_ui.png" width="700">
 </p>
 
 # FileSorterApp
