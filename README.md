@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/filesor_ui.png" width="700">
+  <img src="assets/filesor_ui.png" width="450">
 </p>
 
 # FileSorterApp
@@ -35,8 +35,7 @@ Close and reopen the terminal.
 You should now see something like:
 
     (.venv) PS C:\Users\...
-
-This means you are in the virtual environment and are ready to run the program.
+    
 ---
 
 ## Running the App
