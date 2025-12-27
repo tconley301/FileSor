@@ -8,7 +8,7 @@
 
 import sys
 
-from fs_ui.ui_handler import UIHandler
+from src.fs_ui.ui_handler import UIHandler
 from src.fs_utils.app_utils import Helper
 from src.core.file_logic import FileLogic
 
@@ -63,9 +63,8 @@ class FileSorterApp(QMainWindow):
         self.ui_handler.save_folder_rules()
         event.accept()  # explicitly allow close
         super().closeEvent(event)
-# =====================================================================
-# Application Entrypoint
-# =====================================================================
+
+# Entrypoint
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("FileSor")

@@ -1,19 +1,23 @@
 import os
 
 import json
+import pathlib
+import shutil
+
 from PySide6.QtCore import QUrl, Qt, QStandardPaths
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QDesktopServices
 from PySide6.QtWidgets import QInputDialog, QFileDialog, QMenu, QListView, QTreeView, QAbstractItemView, \
     QMessageBox
 from pathlib import Path
 
-from core.drop_filter import DropFilter
-from fs_utils.app_utils import Helper
+from src.core.drop_filter import DropFilter
+from src.fs_utils.app_utils import Helper
 
 
 class UIHandler:
     def __init__(self, window, logic):
 
+        self._rules_loaded = False
         self.window = window
         self.logic = logic
 
@@ -26,6 +30,10 @@ class UIHandler:
         self.folder_model = QStandardItemModel()
         self.window.ui.folderListView.setModel(self.folder_model)
 
+        self.folder_rules = []
+        self.logic.bind_folder_rules(self.folder_rules)
+
+
         self.load_folder_rules()
         self.refresh_folder_list()
 
@@ -37,8 +45,7 @@ class UIHandler:
 
 
 
-        self.folder_rules = []
-        self.logic.bind_folder_rules(self.folder_rules)
+
 
     def on_manual_clicked(self):
         box = QMessageBox(self.window)
@@ -85,8 +92,9 @@ class UIHandler:
             "name": os.path.basename(folder_path) or folder_path,
             "exts": exts
         })
-        self.refresh_folder_list()
+
         self.save_folder_rules()
+        self.refresh_folder_list()
 
     def on_list_context_menu(self, pos):
         """Show right-click menu to edit or remove folder rules."""
@@ -108,20 +116,37 @@ class UIHandler:
 
     def on_folder_double_clicked(self, index):
         item = self.folder_model.itemFromIndex(index)
-        rule = item.data(Qt.UserRole)
-        folder_path = rule["path"]
+        rule_index = item.data(Qt.UserRole)
+        folder_path = self.folder_rules[rule_index].get("path", "")
+
+        if not folder_path:
+            QMessageBox.warning(
+                self.window,
+                "Invalid Folder",
+                "This rule does not have a valid folder path."
+            )
+            return
+
+        if not Path(folder_path).exists():
+            QMessageBox.warning(
+                self.window,
+                "Folder Not Found",
+                f"The folder no longer exists:\n{folder_path}"
+            )
+            return
+
+        print("rule: ", rule_index)
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
 
     def edit_selected_folder_tags(self, index):
-        """Edit allowed extensions for the folder rule tied to this list item."""
         if not index or not index.isValid():
             return
 
-        item = self.folder_model.itemFromIndex(index)
-        rule = item.data(Qt.UserRole)  # <-- rule dict stored in UserRole
-        if not rule:
+        row = index.row()
+        if row < 0 or row >= len(self.folder_rules):
             return
 
+        rule = self.folder_rules[row]
         current = ", ".join(sorted(e.lstrip(".") for e in rule.get("exts", set())))
 
         text, ok = QInputDialog.getText(
@@ -130,47 +155,51 @@ class UIHandler:
             "Extensions (comma-separated):",
             text=current
         )
-        if ok:
-            rule["exts"] = Helper.parse_exts(text)
-            self.refresh_folder_list()
-            self.save_folder_rules()
+        if not ok:
+            return
+
+        rule["exts"] = Helper.parse_exts(text)
+
+        self.save_folder_rules()
+        self.refresh_folder_list()
 
     def remove_selected_folder(self, index):
-        """Remove the folder rule tied to this list item."""
         if not index or not index.isValid():
             return
 
-        item = self.folder_model.itemFromIndex(index)
-        rule = item.data(Qt.UserRole)
-        if not rule:
+        row = index.row()
+        if row < 0 or row >= len(self.folder_rules):
             return
 
-        # prompt user to confirm folder removal
+        rule = self.folder_rules[row]
+
         reply = QMessageBox.question(
             self.window, "Remove folder",
             f"Remove '{rule.get('name', '')}'?",
             QMessageBox.Yes | QMessageBox.No
         )
         if reply != QMessageBox.Yes:
-             return
+            return
 
-        if rule in self.folder_rules:
-            self.folder_rules.remove(rule)
+        del self.folder_rules[row]
 
-        self.refresh_folder_list()
         self.save_folder_rules()
+        self.refresh_folder_list()
 
     def refresh_folder_list(self):
         """Rebuild the ListView based on current folder_rules."""
         self.folder_model.clear()
-        for rule in self.folder_rules:
+
+        for row, rule in enumerate(self.folder_rules):
             label = rule["name"]
             if rule["exts"]:
                 label += "  [ " + ", ".join(sorted(rule["exts"])) + " ]"
+
             item = QStandardItem(label)
             item.setEditable(False)
             item.setToolTip(rule["path"])
-            item.setData(rule, Qt.UserRole)
+
+            item.setData(row, Qt.UserRole)
 
             self.folder_model.appendRow(item)
 
@@ -231,34 +260,94 @@ class UIHandler:
         return base / "folder_rules.json"
 
     def save_folder_rules(self) -> None:
-        """Save folder_rules to disk as JSON."""
-        path = self._rules_path()
+        """Save folder_rules to disk as JSON (safe/atomic)."""
 
+        #debug
+        print("save called, rules len =", len(self.folder_rules))
+
+        path = self._rules_path()
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        bak = path.with_suffix(path.suffix + ".bak")
+
+        # Doesn't save before loaded
+        if not getattr(self, "_rules_loaded", False):
+            print("Skipping save: rules not loaded yet.")
+            return
+
+        # Build serializable data
         data = []
         for r in self.folder_rules:
             data.append({
                 "name": r.get("name", ""),
                 "path": r.get("path", ""),
-                "exts": sorted(list(r.get("exts", set()))),  # set → list
+                "exts": sorted(list(r.get("exts", set()))),
             })
 
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        # Backup existing file
+        if path.exists():
+            shutil.copy2(path, bak)
 
-        print("JSON location: ", self._rules_path())
+        # Atomic write: write temp, then replace
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp.replace(path)
+        print("Replacing temp with path")
+        print("rules len after replacement=", len(self.folder_rules))
+
+        print("Saving to:", self._rules_path())
+        print("rules:", self.folder_rules)
 
     def load_folder_rules(self) -> None:
-        """Load folder_rules from disk if present."""
+        """Load folder_rules from disk if present (with recovery)."""
         path = self._rules_path()
-        if not path.exists():
-            self.folder_rules = []
+        bak = path.with_suffix(path.suffix + ".bak")
+
+        def _load(p: Path):
+            raw_text = p.read_text(encoding="utf-8").strip()
+            if not raw_text:
+                raise ValueError("rules file is empty")
+            return json.loads(raw_text)
+
+
+
+        raw = None
+        if path.exists():
+            try:
+                raw = _load(path)
+            except Exception as e:
+                print(f"Failed to load rules from {path}: {e}")
+
+        if raw is None and bak.exists():
+            try:
+                raw = _load(bak)
+                print("Recovered rules from backup.")
+            except Exception as e:
+                print(f"Failed to load rules from {bak}: {e}")
+
+        if raw is None:
+            self.folder_rules.clear()
+            self._rules_loaded = True
             return
 
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        self.folder_rules = []
+        if not isinstance(raw, list):
+            print(f"Rules file has wrong format (expected list, got {type(raw).__name__})")
+            self.folder_rules = []
+            self._rules_loaded = True
+            return
 
+        loaded_rules = []
         for r in raw:
-            self.folder_rules.append({
+            if not isinstance(r, dict):
+                continue
+            loaded_rules.append({
                 "name": r.get("name", ""),
                 "path": r.get("path", ""),
-                "exts": set(r.get("exts", [])),  # list → set
+                "exts": set(r.get("exts", [])),
             })
+
+        print("Loaded from:", path, "exists:", path.exists())
+        print("Loaded count:", len(loaded_rules))
+
+        self.folder_rules.clear()
+        self.folder_rules.extend(loaded_rules)
+        self._rules_loaded = True
+
