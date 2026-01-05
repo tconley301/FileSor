@@ -18,19 +18,24 @@ provides a clean UI and drag-and-drop support for easy file sorting.
 
 ---
 
-## Setup (Virtual Environment)
+## Setup
 
-### 1. Navigate to the project directory
-Make sure your terminal is in the root folder:
+### 1. Clone repo
 
+    git clone https://github.com/tconley301/FileSor.git
     cd FileSor
 
-### 2. Select the virtual environment interpreter
-In PyCharm:
-- Go to **File / Settings / Python / Interpreter**
-- Select the existing interpreter from the `.venv` folder
+### 2. Create and Activate Virtual Environment
 
-### 3. Restart the terminal
+    python -m venv .venv
+    .venv\Scripts\activate (Windows)
+    source .venv/bin/activate (macOS / Linux)
+
+### 3. Install Dependencies 
+    
+    pip install -r req.txt
+
+### 4. Restart the terminal
 Close and reopen the terminal.  
 You should now see something like:
 
