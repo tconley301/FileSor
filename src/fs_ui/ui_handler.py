@@ -115,6 +115,7 @@ class UIHandler:
             self.remove_selected_folder(index)
 
     def on_folder_double_clicked(self, index):
+        """The doubled clicked folder name will open it in explorer."""
         item = self.folder_model.itemFromIndex(index)
         rule_index = item.data(Qt.UserRole)
         folder_path = self.folder_rules[rule_index].get("path", "")
